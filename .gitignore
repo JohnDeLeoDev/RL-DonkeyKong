@@ -1,0 +1,7 @@
+.DS_Store
+.venv/
+.venv-old/
+model/
+__pycache__/
+.vscode/
+
