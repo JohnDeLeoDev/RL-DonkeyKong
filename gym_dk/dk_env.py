@@ -465,9 +465,10 @@ class DonkeyKongEnv(NESEnv):
     @property
     def _platform_reward(self):
         """Return the reward based on the platform the player is on."""
-        reward = self._current_platform - 1
-        if reward > 1:
-            send_message(f'Player is on platform {self._current_platform}')
+        if self._current_platform < 5:
+            reward = self._current_platform
+        else:
+            reward = 1
         return reward
 
     @property
@@ -653,7 +654,7 @@ class DonkeyKongEnv(NESEnv):
         """Return the reward after a step occurs."""
         #flame = self._fire_position
         death_penalty = self._death_penalty
-        # platform_reward = self._platform_reward
+        platform_reward = self._platform_reward
         # safety_reward = self._reward_safety
         #climbing_reward = self._climbing_reward
         score_reward = self._score_reward
@@ -668,9 +669,10 @@ class DonkeyKongEnv(NESEnv):
         punish_broken_ladder = self._punish_at_broken_ladder
         grounded_reward = self._reward_grounded
         princess_reward = self._reward_closer_to_princess
+        rewards = princess_reward + grounded_reward + reward_at_ladder + score_reward
+        punishments = death_penalty + punish_down_ladder + punish_broken_ladder
         # y_improvement_reward = self.reward_y_improvement
-        total_reward = death_penalty + score_reward + princess_reward + grounded_reward + punish_broken_ladder + reward_at_ladder + punish_down_ladder
-        
+        total_reward = (platform_reward * rewards) + punishments
         return total_reward
 
 
