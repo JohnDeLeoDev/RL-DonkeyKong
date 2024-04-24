@@ -1,15 +1,8 @@
 """An OpenAI Gym environment for Super Mario Bros. and Lost Levels."""
 from collections import defaultdict
-import dis
-from html import entities
-from turtle import pu
-from matplotlib.pyplot import step
 from nes_py import NESEnv
 import numpy as np
-from sympy import false, li
 from ._roms import rom_path
-import os
-from .discord import send_message
 
 # dictionary mapping value of status register to string names
 # $01=Horizontal, $02=Vertical, $04=Jump, $08=Falling, $0A=Has Mallet, $FF=Dead
@@ -27,25 +20,37 @@ class DonkeyKongEnv(NESEnv):
         rom = rom_path()
         # initialize the super object with the ROM path
         super(DonkeyKongEnv, self).__init__(rom)
-        self._time_last = 0
-        self._y_position_last = 41
-        self._max_y = 0
+        # self._time_last = 0
+        # self._y_position_last = 41
+        # self._max_y = 0
         self._platform_last = 1
         self._last_distance_to_princess = 500
-        self._explored_coords: set = set()
-        self._last_grounded_y = 41
+        # self._explored_coords: set = set()
+        # self._last_grounded_y = 41
         self._platform_start: set = set()
         self._actions = []
-        self.num_explored_coords = 0
-        self._reward_counter = 0
+        # self.num_explored_coords = 0
+        # self._reward_counter = 0
         self._first_y = 0
-        self._rewards_averages = []
-        self._rewards_counter = 0
+        # self._rewards_averages = []
+        # self._rewards_counter = 0
         self._barrel_states = []
         self._hammer_position = []
-        self._ladders = set()
+        self._known_ladders = set()
+        with open('ladders.csv', 'r') as f:
+            lines = f.readlines()
+            for line in lines:
+                line = line.split(',')
+                line2 = line[2]
+                if line2 == 'True':
+                    line2bool = True
+                else:
+                    line2bool = False
+                self._known_ladders.add((int(line[0]), int(line[1]), line2bool))
+        
         self._last_player_position = [0, 0]
         self._last_action = None
+        # self._time_on_platforms = []
         self.reset()
         self._skip_start_screen()
         self._backup()
@@ -54,7 +59,7 @@ class DonkeyKongEnv(NESEnv):
     def _read_mem_range(self, address, length):
         return int(''.join(map(str, self.ram[address:address + length])))
 
-    def check_if_explored(self, x, y):
+    '''def check_if_explored(self, x, y):
         for coord in self._explored_coords:
             if abs(coord[0] - x) <= 5 and abs(coord[1] - y) <= 5:
                 current_count = coord[2]
@@ -64,46 +69,60 @@ class DonkeyKongEnv(NESEnv):
         # add new coord to explored coords
         self._explored_coords.add((x, y, 1))
         self.num_explored_coords += 1
-        return False 
+        return False''' 
 
-    def get_count_visited_coords(self, x , y):
+    '''def get_count_visited_coords(self, x , y):
         for coord in self._explored_coords:
             if coord[0] == x and coord[1] == y:
                 return coord[2]
-        return 0
+        return 0'''
 
-    def check_broken_ladder(self, player_position, last_player_position, last_player_status, last_player_movement):        
-        if self._ladders == None:
-            self._ladders = set()
+    '''def check_broken_ladder(self, player_position, last_player_position, last_player_status, last_player_movement):        
+        if self._known_ladders == None:
+            self._known_ladders = set()
         
         if last_player_status == 'Climbing' and last_player_movement == 'Up':
             if last_player_position[1] - player_position[1] > 0:
-                for ladder in self._ladders:
+                for ladder in self._known_ladders:
                     if ladder[0] == self._current_platform and ladder[1] == player_position[0] and not ladder[2]:
                         temp_ladder = ladder
-                        self._ladders.remove(ladder)
-                        self._ladders.add((temp_ladder[0], temp_ladder[1], True, False))
+                        self._known_ladders.remove(ladder)
+                        self._known_ladders.add((temp_ladder[0], temp_ladder[1], True))
                         return True
-        return False
+        return False'''
+    
+    def log_ladder(self, ladder):
+        # look at ladders.csv and see if ladder is already there
+        with open('ladders.csv', 'r') as f:
+            lines = f.readlines()
+            for line in lines:
+                line = line.split(',')
+                if int(line[0]) == ladder[0] and int(line[1]) == ladder[1]:
+                    return        
+        # log ladder to ladders.csv
+        with open('ladders.csv', 'a') as f:
+            f.write(f'{ladder[0]}, {ladder[1]}, {ladder[2]}\n')
+        self._known_ladders.add((ladder[0], ladder[1], ladder[2],))
         
     def mark_ladder(self, player_position):
-        if self._ladders == None:
-            self._ladders = set()
+        if self._known_ladders == None:
+            self._known_ladders = set()
         if self._player_status == 'Climbing':
-            for ladder in self._ladders:
-                if ladder[0] == self._current_platform:
+            for ladder in self._known_ladders:
+                if ladder[0] == self._current_platform or ladder[0] == self._current_platform - 1:
                     if ladder[1] == player_position[0] :
                         return
-            self._ladders.add((self._current_platform, player_position[0], False, False))
+            if self._current_platform > 0 and player_position[0]>0:
+                self.log_ladder((self._current_platform, player_position[0], False,))
 
     def mark_successful_ladder(self, player_position):
         if self._platform_last != self._current_platform:
-            for ladder in self._ladders:
+            for ladder in self._known_ladders:
                 if ladder[0] == self._platform_last:
                     if ladder[1] == player_position[0]:
                         temp_ladder = ladder
-                        self._ladders.remove(ladder)
-                        self._ladders.add((temp_ladder[0], temp_ladder[1], False, True))
+                        self._known_ladders.remove(ladder)
+                        self._known_ladders.add((temp_ladder[0], temp_ladder[1], False, True))
                         return
         return
 
@@ -279,10 +298,11 @@ class DonkeyKongEnv(NESEnv):
     
     @property
     def _check_platform_start(self):
+        time = self._time
         for platform in self._platform_start:
             if platform[0] == self._current_platform:
-                return platform[1]
-        self._platform_start.add((self._current_platform, self.player_position[0], 0))
+                return platform[1], platform[2]
+        self._platform_start.add((self._current_platform, self.player_position[0], 0, time))
         return self.player_position[0]
 
     @property
@@ -386,29 +406,55 @@ class DonkeyKongEnv(NESEnv):
         # step forward one frame
         self._frame_advance(0)
 
-    # MARK: Reward Function
+    # MARK: Reward Functions
 
-    @property
+    '''@property
     def _reward_at_ladder(self):
         """Return the reward earned by climbing a ladder."""
-        if self._ladders == None:
-            self._ladders = set()
-        for ladder in self._ladders:
-            if ladder[0] == self._current_platform and ladder[1] == self.player_position[0] and not ladder[2]:
-                return 1
-            if ladder[0] == self._current_platform and ladder[1] == self.player_position[0] and ladder[2]:
-                return -0.1
-        
-        return 0
+        if self._known_ladders == None:
+            self._known_ladders = set()
+        for ladder in self._known_ladders:
+            if ladder[0] == self._current_platform:
+                if ladder[1] == self.player_position[0] and not ladder[2]:
+                    return 0.1
+                if ladder[1] == self.player_position[0] and ladder[2]:
+                    return -1     
+        return -0.0001'''
     
+    @property
+    def _reward_closer_to_ladder(self):
+        if self.player_position[0] == 0 and self.player_position[1] == 0:
+            return 0
+
+        if self._known_ladders == None:
+            self._known_ladders = set()
+
+        closest_ladder = None
+        for ladder in self._known_ladders:
+            if ladder[0] == self._current_platform and not ladder[2]:
+                distance = abs(ladder[1] - self.player_position[0])
+                if closest_ladder == None:
+                    closest_ladder = ladder
+                elif distance < abs(closest_ladder[1] - self.player_position[0]):
+                    closest_ladder = ladder
+        if closest_ladder != None:
+            distance = abs(closest_ladder[1] - self.player_position[0])
+            #check if distance is a number
+            if distance == 0:
+                return 0.1
+            return 0.1/distance    
+        return 0
+        
     
     @property
     def _punish_down_ladder(self):
+        if self.player_position[0] == 0 and self.player_position[1] == 0:
+            return 0
         if self._player_status == 'Climbing' and self._last_action == 'Down':
             return -1
         return 0
 
-    @property
+    '''@property
     def _reward_platform_travel(self):
         """Return the reward earned by traveling on a platform."""
         platform_start = self._check_platform_start
@@ -421,9 +467,9 @@ class DonkeyKongEnv(NESEnv):
         total_platform_travel = 0
         for platform in self._platform_start:
             total_platform_travel += platform[2]
-        return total_platform_travel / 100000
+        return total_platform_travel / 100000'''
 
-    @property
+    '''@property
     def _reward_exploration(self):
         """Return the reward earned by exploring."""
         if self._get_info()['player_position'][1] > 0:
@@ -432,13 +478,13 @@ class DonkeyKongEnv(NESEnv):
             else:
                 # return a value between 0 and 1 based on the number of explored coords, decreasing as the number of explored coords increases
                 return 0.0001 * self.num_explored_coords / self.get_count_visited_coords(self._get_info()['player_position'][0], self._get_info()['player_position'][1])
-        return 0
+        return 0'''
 
-    @property
+    '''@property
     def _reward_grounded_y(self):
-        return (self._grounded_y - 41) / 100
+        return (self._grounded_y - 41) / 100'''
         
-
+    '''    
     @property
     def _y_reward(self):
         if self._first_y == 0:
@@ -454,16 +500,21 @@ class DonkeyKongEnv(NESEnv):
             self._y_position_last = self.player_position[1] 
             return _reward / 1000
         return 0
-    
+    '''
+
+    '''    
     @property
     def _new_max_y_reward(self):        
         if self._get_info()['player_position'][1] > self._max_y:
             self._max_y = self._get_info()['player_position'][1]
             return 0.1
         return 0
+    '''
 
     @property
     def _platform_reward(self):
+        if self.player_position[0] == 0 and self.player_position[1] == 0:
+            return 0
         """Return the reward based on the platform the player is on."""
         if self._current_platform < 5:
             reward = self._current_platform
@@ -481,12 +532,13 @@ class DonkeyKongEnv(NESEnv):
     
     @property
     def _reward_grounded(self):
+        if self.player_position[0] == 0 and self.player_position[1] == 0:
+            return 0
         """Return the reward earned by being grounded."""
         if self._is_grounded:
             return .1
         return 0
 
-    
     @property
     def _climbing_reward(self):
         """Return the reward earned by climbing."""
@@ -497,10 +549,12 @@ class DonkeyKongEnv(NESEnv):
     
     @property
     def _score_reward(self):
+        if self.player_position[0] == 0 and self.player_position[1] == 0:
+            return 0
         """Return the reward earned by scoring."""
         return self._p1_score / 10000
 
-    @property
+    '''@property
     def reward_y_improvement(self):
         reward = 0
         current_platform = self._current_platform
@@ -508,12 +562,13 @@ class DonkeyKongEnv(NESEnv):
         if current_ground_y != self._last_grounded_y:
             reward = (current_ground_y - 41) * current_platform 
         self._last_grounded_y = current_ground_y
-        return reward
+        return reward'''
 
-    @property
+    '''@property
     def _time_reward(self):
         return (80000 - self._time) / 1000000
-    
+    '''
+    '''
     @property
     def _distance_to_flame(self):
         if self._fire_position == 0:
@@ -521,10 +576,12 @@ class DonkeyKongEnv(NESEnv):
         flame_x, flame_y = self._fire_position
         player_x, player_y = self.player_position
         distance = np.sqrt((player_x - flame_x)**2 + (player_y - flame_y)**2)
-        return distance
+        return distance'''
 
     @property
-    def _distance_to_princess(self):
+    def _distance_to_princess(self) -> list[float]:
+        if self.player_position[0] == 0 and self.player_position[1] == 0:
+            return [np.inf, np.inf]
         princess_y, princess_x = self._princess_position
         player_y, player_x = self.player_position
         if player_x == 0 or player_y == 0:
@@ -532,26 +589,48 @@ class DonkeyKongEnv(NESEnv):
         distance_x = abs(player_x - princess_x)
         distance_y = abs(player_y - princess_y)
 
-
-        return [distance_x, distance_y]
+        return [distance_x, distance_y] 
 
     @property
     def _reward_closer_to_princess(self):
+        if self.player_position[0] == 0 and self.player_position[1] == 0:
+            return 0
         distance_x = self._distance_to_princess[0]
         distance_y = self._distance_to_princess[1]
         actual_distance = np.sqrt(distance_x**2 + distance_y**2)
 
         # return a reward based on the distance to the princess but add more as get closer in the y direction
         return (1/actual_distance + 4/distance_y)
-         
+
+    '''@property
+    def _time_on_platform_punishment(self):
+        time = self._time
+        for platform in self._platform_start:
+            if platform[0] == self._current_platform:
+                return -1000/(time - platform[2])
+        return 0'''   
+    
+    @property
+    def _punish_staying_still(self):
+        if self.player_position[0] == 0 and self.player_position[1] == 0:
+            return 0
+        if self._last_action == 'No Action':
+            return -0.1
+        if self._last_player_position == self.player_position:
+            return -0.1
+        return 0
+
     @property
     def _punish_at_broken_ladder(self):
-        if self._ladders == None:
-            self._ladders = set()
-        for ladders in self._ladders:
+        if self.player_position[0] == 0 and self.player_position[1] == 0:
+            return 0
+        if self._known_ladders == None:
+            self._known_ladders = set()
+        for ladders in self._known_ladders:
             if self._current_platform == ladders[0] and self.player_position[0] == ladders[1] and ladders[2] and self._player_status == 'Climbing':
                 return -1
         return 0
+    '''
     @property
     def _reward_safety(self):
         if self._fire_position == 0:
@@ -564,7 +643,7 @@ class DonkeyKongEnv(NESEnv):
         if distance < 10:
             return -1/distance   
         return 0
-
+    '''
     # MARK: nes-py API calls
 
     def _will_reset(self):
@@ -602,8 +681,6 @@ class DonkeyKongEnv(NESEnv):
         self._last_player_status = self._player_status
         
         self.mark_ladder(self.player_position)
-        self.check_broken_ladder(self.player_position, self._last_player_position, self._player_status, self._last_action)
-        self.mark_successful_ladder(self.player_position)
         self._last_player_position = self.player_position
         
         return super(DonkeyKongEnv, self).step(action)
@@ -629,7 +706,7 @@ class DonkeyKongEnv(NESEnv):
         if done:
             return
 
-    def average_rewards(self, death_penalty, platform_reward, climbing_reward, score_reward, y_reward, reward_platform_travel, time_reward, total_reward, new_max_y_reward):
+    '''def average_rewards(self, death_penalty, platform_reward, climbing_reward, score_reward, y_reward, reward_platform_travel, time_reward, total_reward, new_max_y_reward):
         # append the rewards to the rewards log
         
         if self._rewards_counter ==0:
@@ -648,34 +725,40 @@ class DonkeyKongEnv(NESEnv):
             (current_averages[7] + time_reward) / self._rewards_counter,
             (current_averages[8] + total_reward) / self._rewards_counter,
             (current_averages[6] + new_max_y_reward) / self._rewards_counter,
-        ]
+        ]'''
+    
+    def log_reward(self, reward):
+        with open('rewards_map.csv', 'a') as f:
+            f.write(f'{self.player_position[0]}, {self.player_position[1]}, {reward}\n')
         
     def _get_reward(self):
         """Return the reward after a step occurs."""
-        #flame = self._fire_position
+        # flame = self._fire_position
+        # safety_reward = self._reward_safety
+        # score_reward = self._score_reward
+        # reward_exploration = self._reward_exploration
+        # new_max_y_reward = self._new_max_y_reward
+        # y_reward = self._y_reward
+        # reward_platform_travel = self._reward_platform_travel
+        # time_reward = self._time_reward
+        # grounded_y_reward = self._reward_grounded_y
+        # punish_down_ladder = self._punish_down_ladder
+        # reward_at_ladder = self._reward_at_ladder
+        # time_on_platform_punishment = self._time_on_platform_punishment
+        # y_improvement_reward = self.reward_y_improvement
+
+        climbing_reward = self._climbing_reward
+        punish_broken_ladder = self._punish_at_broken_ladder
         death_penalty = self._death_penalty
         platform_reward = self._platform_reward
-        # safety_reward = self._reward_safety
-        #climbing_reward = self._climbing_reward
-        score_reward = self._score_reward
-        #reward_exploration = self._reward_exploration
-        #new_max_y_reward = self._new_max_y_reward
-        #y_reward = self._y_reward
-        # reward_platform_travel = self._reward_platform_travel
-        #time_reward = self._time_reward
-        # grounded_y_reward = self._reward_grounded_y
-        punish_down_ladder = self._punish_down_ladder
-        reward_at_ladder = self._reward_at_ladder
-        punish_broken_ladder = self._punish_at_broken_ladder
         grounded_reward = self._reward_grounded
         princess_reward = self._reward_closer_to_princess
-        rewards = princess_reward + grounded_reward + reward_at_ladder + score_reward
-        punishments = death_penalty + punish_down_ladder + punish_broken_ladder
-        # y_improvement_reward = self.reward_y_improvement
-        total_reward = (platform_reward * rewards) + punishments
+        ladder_distance_reward = (self._reward_closer_to_ladder + platform_reward)/10
+        rewards = princess_reward + grounded_reward + ladder_distance_reward + climbing_reward
+        punishments = death_penalty + punish_broken_ladder + self._punish_staying_still
+        total_reward = (platform_reward * platform_reward * rewards) + punishments
+
         return total_reward
-
-
 
     def _get_done(self):
         """Return True if the episode is over, False otherwise."""
@@ -689,10 +772,8 @@ class DonkeyKongEnv(NESEnv):
             platform=self._current_platform,
             time=self._time,
             player_position=self.player_position,
-            max_y=self._max_y,
             princess_pos=self._princess_position, 
             distance_to_princess=self._distance_to_princess,
-            distance_to_flame=self._distance_to_flame,
             fire_position=self._fire_position,
             player_state=self._player_state,
             player_status=self._player_status,
@@ -713,8 +794,6 @@ class DonkeyKongEnv(NESEnv):
             flame_state=self._flame_state,
             flame_direction=self._flame_direction,
             current_platform=self._current_platform,
-            reward_platform_travel=self._reward_platform_travel,
-            y_reward=self._y_reward,
             platform_reward=self._platform_reward,
             death_penalty=self._death_penalty,
             entities_per_platform=self.entities_per_platform,
@@ -731,6 +810,22 @@ class DonkeyKongEnv(NESEnv):
             jumpman_on_platform_flag=self._jumpman_on_platform_flag,
             jumpman_climb_on_plat_anim_counter=self._jumpman_climb_on_plat_anim_counter,
             jumpman_climb_anim_counter=self._jumpman_climb_anim_counter,
-            ladders=self._ladders,
+            check_platform_start=self._check_platform_start,
+            punish_down_ladder=self._punish_down_ladder,
+            reward_closer_to_princess=self._reward_closer_to_princess,
+            reward_grounded=self._reward_grounded,
+            known_ladders=self._known_ladders,
+            reward_closer_to_ladder=self._reward_closer_to_ladder,
+            last_action=self._last_action,
+            last_player_position=self._last_player_position,
+            last_player_status=self._last_player_status,
+            last_grounded_y=self._last_grounded_y,
+            platform_start=self._platform_start,
+            actions=self._actions,
+            platform_last=self._platform_last,
+            last_distance_to_princess=self._last_distance_to_princess,
+            punish_staying_still=self._punish_staying_still,
+            
+
         )
 

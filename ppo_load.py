@@ -1,33 +1,22 @@
-from turtle import done
 import gym.spaces
-from NESenv import CustomRewardAndDoneEnv, SkipFrame, ResizeEnv, display_all_frame
-from typing import Any, Callable, Dict, Optional, Type, Union
+from gym_dk.NESenv import SkipFrame, ResizeEnv
 from stable_baselines3.ppo.ppo import PPO
 import torch as th
 from torch import nn
 from pathlib import Path
-import datetime
-from pytz import timezone
-import pandas as pd
 import gym
 import numpy as np
-import matplotlib.pyplot as plt
-import cv2
 import os
-from gym.wrappers import GrayScaleObservation
+from gym.wrappers import GrayScaleObservation # type: ignore
 from stable_baselines3.common.vec_env.vec_frame_stack import VecFrameStack
 from stable_baselines3.common.vec_env.dummy_vec_env import DummyVecEnv
-from stable_baselines3.common.vec_env.subproc_vec_env import SubprocVecEnv
-import gym_dk
 from nes_py.wrappers import JoypadSpace
-from gym_dk.actions import SIMPLE_MOVEMENT
 from gym_dk.actions import COMPLEX_MOVEMENT
-from gym_dk.actions import RIGHT_ONLY
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from gym_dk.dk_env import DonkeyKongEnv
 from stable_baselines3.common.monitor import Monitor
-from gym_dk.discord import send_message
+
 
 def train():
     # Model Param
@@ -41,16 +30,15 @@ def train():
     BATCH_SIZE = 64
     N_EPOCHS = 10
 
-    # Test Param
-    EPISODE_NUMBERS = 20
-    MAX_TIMESTEP_TEST = 1000
-
-
-    save_dir = Path('./model')
-    save_dir_str = "./model"
+    save_dir = Path('./model/PPO')
+    save_dir_str = "./model/PPO"
 
     if not save_dir.exists():
         save_dir.mkdir(parents=True)
+
+    reward_log_path = (save_dir / 'reward_log.csv')
+    with open(reward_log_path, 'a') as f:
+        print('timesteps,reward,best_reward', file=f)
 
     class MarioNet(BaseFeaturesExtractor):
 
@@ -93,17 +81,13 @@ def train():
             if self.save_path is not None:
                 os.makedirs(self.save_path, exist_ok=True)
 
-        def _on_step(self):            
+        def _on_step(self):
             if self.n_calls % self.check_freq == 0:
                 model_path = (save_dir / 'PPO.zip')
                 self.model.save(model_path) # type: ignore
-                    
             return True
     
     callback = TrainAndLoggingCallback(check_freq=CHECK_FREQ_NUMB, save_path=save_dir)
-
-    STAGE_NAME = 'DonkeyKong-v0' 
-    MOVEMENT = COMPLEX_MOVEMENT
 
     env = DonkeyKongEnv()
     env = JoypadSpace(env, COMPLEX_MOVEMENT)
@@ -119,18 +103,19 @@ def train():
     model = PPO('CnnPolicy', env, verbose=1, policy_kwargs=policy_kwargs, tensorboard_log=save_dir, learning_rate=LEARNING_RATE, n_steps=N_STEPS, # type: ignore
               batch_size=BATCH_SIZE, n_epochs=N_EPOCHS, gamma=GAMMA, gae_lambda=GAE, ent_coef=ENT_COEF, device='mps')
     
-    if os.path.exists('model/PPO.zip'):
-        model = PPO.load('model/PPO', env=env)
-        print('Model is loaded')
-
-    send_message('Training is started.')
-    # print the results of below
-    model.learn(total_timesteps=TOTAL_TIMESTEP_NUMB, callback=callback)
-
-
-
-    send_message('Training is done!')
-
-if __name__ == "__main__":
+    while True:
+        # check that file is a zip file
+        if os.path.exists('model/PPO/PPO.zip'):
+            model = PPO.load('model/PPO/PPO.zip')
+            state = env.reset()
+            done = False
+            while not done:
+                action, _ = model.predict(np.array([state])) # Fix: Pass the observation as a NumPy array
+                state, reward, done, info = env.step(action)
+                env.render()
+                
+if __name__ == '__main__':
     train()
-    # parallelTestModule.test()
+
+
+
