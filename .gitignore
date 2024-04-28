@@ -6,5 +6,6 @@ __pycache__/
 .vscode/
 tensorboard_log/
 NEAT/
+previous/
 
 

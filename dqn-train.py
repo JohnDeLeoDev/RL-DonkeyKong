@@ -1,3 +1,6 @@
+from collections import namedtuple
+from math import gamma
+from cv2 import exp
 import gym.spaces
 from gym_dk.NESenv import SkipFrame, ResizeEnv
 import torch as th
@@ -14,10 +17,12 @@ from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from gym_dk.dk_env import DonkeyKongEnv
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.dqn.dqn import DQN
-from gym.wrappers import GrayScaleObservation # type: ignore
+from gym.wrappers import GrayScaleObservation  # type: ignore
+import random
+
 
 def train():
-    save_dir = Path('./model/DQN')
+    save_dir = Path("./model/DQN")
     save_dir_str = "./model/DQN"
     CHECK_FREQ_NUMB = 1000
 
@@ -28,7 +33,7 @@ def train():
 
         def __init__(self, observation_space: gym.spaces.Box, features_dim):
             super(MarioNet, self).__init__(observation_space, features_dim)
-            n_input_channels = observation_space.shape[0] # type: ignore
+            n_input_channels = observation_space.shape[0]  # type: ignore
             self.cnn = nn.Sequential(
                 nn.Conv2d(n_input_channels, 32, kernel_size=3, stride=2, padding=1),
                 nn.ReLU(),
@@ -43,7 +48,9 @@ def train():
 
             # Compute shape by doing one forward pass
             with th.no_grad():
-                n_flatten = self.cnn(th.as_tensor(observation_space.sample()[None]).float()).shape[1]
+                n_flatten = self.cnn(
+                    th.as_tensor(observation_space.sample()[None]).float()
+                ).shape[1]
 
             self.linear = nn.Sequential(nn.Linear(n_flatten, features_dim), nn.ReLU())
 
@@ -65,50 +72,54 @@ def train():
             if self.save_path is not None:
                 os.makedirs(self.save_path, exist_ok=True)
 
-        def _on_step(self):            
+        def _on_step(self):
             if self.n_calls % self.check_freq == 0:
-                model_path = (save_dir / 'DQN.zip')
-                self.model.save(model_path) # type: ignore
+                model_path = save_dir / "DQN.zip"
+                self.model.save(model_path)  # type: ignore
             return True
-    
+
     callback = TrainAndLoggingCallback(check_freq=CHECK_FREQ_NUMB, save_path=save_dir)
 
-    env= DonkeyKongEnv()
-    env= JoypadSpace(env, COMPLEX_MOVEMENT)
-    #env = CustomRewardAndDoneEnv(env)
+    env = DonkeyKongEnv()
+    env = JoypadSpace(env, COMPLEX_MOVEMENT)
+    # env = CustomRewardAndDoneEnv(env)
     env = SkipFrame(env, skip=4)
-    env= GrayScaleObservation(env, keep_dim=True)
-    env= ResizeEnv(env, size=84)
-    env= Monitor(env, save_dir_str)
-    env= DummyVecEnv([lambda: env]) # type: ignore
-    env= VecFrameStack(env, 4, channels_order='last')
+    env = GrayScaleObservation(env, keep_dim=True)
+    env = ResizeEnv(env, size=84)
+    env = Monitor(env, save_dir_str)
+    env = DummyVecEnv([lambda: env])  # type: ignore
+    env = VecFrameStack(env, 4, channels_order="last")
     env.reset()
 
     model = DQN(
         "CnnPolicy",
         env,
         verbose=2,
-        device='mps',
+        device="mps",
         tensorboard_log="./tensorboard_log/DQN",
-        policy_kwargs=policy_kwargs
+        policy_kwargs=policy_kwargs,
+        learning_rate=0.0001,
+        buffer_size=100000,
+        batch_size=512,
+        exploration_fraction=0.5,
     )
-    
+
     num_episodes = 1000000
     env.reset()
 
     # check if model saved
-    if os.path.exists(save_dir_str + '/DQN.zip'):
-        model = DQN.load(save_dir_str + '/DQN.zip', env=env)
+    if os.path.exists(save_dir_str + "/DQN.zip"):
+        model = DQN.load(save_dir_str + "/DQN.zip", env=env)
         print("Model Loaded")
     else:
         print("Model Created")
 
-    model.learn(total_timesteps=num_episodes, callback=callback)
-    model.save(save_dir_str + '/DQN.zip')
+    while True:
+        model.learn(total_timesteps=num_episodes, callback=callback)
+        model.save(save_dir_str + "/DQN.zip")
 
     env.close()
-    
-if __name__ == '__main__':
-    train()
 
-            
+
+if __name__ == "__main__":
+    train()

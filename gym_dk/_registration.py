@@ -1,4 +1,5 @@
 """Registration code of Gym environments in this package."""
+
 import gym
 
 
@@ -18,12 +19,12 @@ def _register_dk_env(id, is_random=False, **kwargs):
     # if the is random flag is set
     if is_random:
         # set the entry point to the random level environment
-        entry_point = 'gym_dk:DonkeyKongEnv'
+        entry_point = "gym_dk:DonkeyKongEnv"
     else:
         # set the entry point to the standard Super Mario Bros. environment
-        entry_point = 'gym_dk:DonkeyKongEnv'
+        entry_point = "gym_dk:DonkeyKongEnv"
     # register the environment
-    gym.envs.registration.register(
+    gym.envs.registration.register(  # type: ignore
         id=id,
         entry_point=entry_point,
         max_episode_steps=9999999,
@@ -34,7 +35,7 @@ def _register_dk_env(id, is_random=False, **kwargs):
 
 
 # Super Mario Bros.
-_register_dk_env('DonkeyKong-v0')
+_register_dk_env("DonkeyKong-v0")
 
 # create an alias to gym.make for ease of access
 make = gym.make
@@ -42,7 +43,4 @@ vector = gym.vector
 vector.make = gym.vector.make
 
 # define the outward facing API of this module (none, gym provides the API)
-__all__ = [make.__name__]
-
-
-
+__all__ = [make.__name__]  # type: ignore

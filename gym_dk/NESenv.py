@@ -15,11 +15,12 @@ from gym_dk.actions import RIGHT_ONLY
 
 
 def display_all_frame(state):
-    plt.figure(figsize=(16,16))
+    plt.figure(figsize=(16, 16))
     for idx in range(state.shape[3]):
-        plt.subplot(1,4,idx+1)
-        plt.imshow(state[0][:,:,idx])
+        plt.subplot(1, 4, idx + 1)
+        plt.imshow(state[0][:, :, idx])
     plt.show()
+
 
 class SkipFrame(gym.Wrapper):
     def __init__(self, env, skip):
@@ -36,20 +37,23 @@ class SkipFrame(gym.Wrapper):
                 break
         return obs, total_reward, done, info
 
+
 class ResizeEnv(gym.ObservationWrapper):
     def __init__(self, env, size):
         gym.ObservationWrapper.__init__(self, env)
         (oldh, oldw, oldc) = env.observation_space.shape
         newshape = (size, size, oldc)
-        self.observation_space = gym.spaces.Box(low=0, high=255,
-            shape=newshape, dtype=np.uint8)
+        self.observation_space = gym.spaces.Box(  # type: ignore
+            low=0, high=255, shape=newshape, dtype=np.uint8
+        )
 
     def observation(self, frame):
         height, width, _ = self.observation_space.shape
         frame = cv2.resize(frame, (width, height), interpolation=cv2.INTER_AREA)
         if frame.ndim == 2:
-            frame = frame[:,:,None]
+            frame = frame[:, :, None]
         return frame
+
 
 class CustomRewardAndDoneEnv(gym.Wrapper):
     def __init__(self, env=None):
@@ -57,10 +61,8 @@ class CustomRewardAndDoneEnv(gym.Wrapper):
 
     def reset(self, **kwargs):
         return self.env.reset(**kwargs)
-    
-                
+
     def step(self, action):
         state, reward, done, info = self.env.step(action)
-     
+
         return state, reward, done, info
-    
