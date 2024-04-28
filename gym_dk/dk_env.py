@@ -779,6 +779,7 @@ class DonkeyKongEnv(NESEnv):
         # reward_exploration = self._reward_exploration
         # new_max_y_reward = self._new_max_y_reward
         y_reward = self._y_reward
+        y_reward = self._y_reward
         # reward_platform_travel = self._reward_platform_travel
         # time_reward = self._time_reward
         # grounded_y_reward = self._reward_grounded_y
@@ -788,10 +789,17 @@ class DonkeyKongEnv(NESEnv):
         # y_improvement_reward = self.reward_y_improvement
         # climbing_reward = self._climbing_reward
         # punish_broken_ladder = self._punish_at_broken_ladder
+        # climbing_reward = self._climbing_reward
+        # punish_broken_ladder = self._punish_at_broken_ladder
         death_penalty = self._death_penalty
         platform_reward = self._platform_reward
         grounded_reward = self._reward_grounded
         princess_reward = self._reward_closer_to_princess
+        # ladder_distance_reward = (self._reward_closer_to_ladder + platform_reward)/10
+
+        rewards = princess_reward + y_reward + grounded_reward
+        punishments = death_penalty
+        total_reward = (platform_reward * rewards) + punishments
         # ladder_distance_reward = (self._reward_closer_to_ladder + platform_reward)/10
 
         rewards = princess_reward + y_reward + grounded_reward
