@@ -21,13 +21,13 @@ from stable_baselines3.common.monitor import Monitor
 def train():
     # Model Param
     CHECK_FREQ_NUMB = 1000
-    TOTAL_TIMESTEP_NUMB = 5000000
+    TOTAL_TIMESTEP_NUMB = 1000000
     LEARNING_RATE = 0.0001
     GAE = 1.0
     ENT_COEF = 0.01
     N_STEPS = 512
     GAMMA = 0.9
-    BATCH_SIZE = 64
+    BATCH_SIZE = 512
     N_EPOCHS = 10
 
     save_dir = Path('./model/PPO')
@@ -110,7 +110,7 @@ def train():
             state = env.reset()
             done = False
             while not done:
-                action, _ = model.predict(np.array([state])) # Fix: Pass the observation as a NumPy array
+                action, _ = model.predict(state) # type: ignore
                 state, reward, done, info = env.step(action)
                 env.render()
                 

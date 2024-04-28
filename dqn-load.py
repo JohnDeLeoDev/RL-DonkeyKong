@@ -70,7 +70,9 @@ def train():
         verbose=2,
         device='mps',
         tensorboard_log="./tensorboard_log/DQN",
-        policy_kwargs=policy_kwargs
+        policy_kwargs=policy_kwargs,
+        exploration_initial_eps=0,
+        exploration_final_eps=0,
     )
     
     # render

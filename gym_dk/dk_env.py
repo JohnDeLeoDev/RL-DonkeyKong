@@ -484,7 +484,7 @@ class DonkeyKongEnv(NESEnv):
     def _reward_grounded_y(self):
         return (self._grounded_y - 41) / 100'''
         
-    '''    
+       
     @property
     def _y_reward(self):
         if self._first_y == 0:
@@ -500,7 +500,7 @@ class DonkeyKongEnv(NESEnv):
             self._y_position_last = self.player_position[1] 
             return _reward / 1000
         return 0
-    '''
+    
 
     '''    
     @property
@@ -599,7 +599,6 @@ class DonkeyKongEnv(NESEnv):
         distance_y = self._distance_to_princess[1]
         actual_distance = np.sqrt(distance_x**2 + distance_y**2)
 
-        # return a reward based on the distance to the princess but add more as get closer in the y direction
         return (1/actual_distance + 4/distance_y)
 
     '''@property
@@ -610,7 +609,7 @@ class DonkeyKongEnv(NESEnv):
                 return -1000/(time - platform[2])
         return 0'''   
     
-    @property
+    '''@property
     def _punish_staying_still(self):
         if self.player_position[0] == 0 and self.player_position[1] == 0:
             return 0
@@ -618,9 +617,9 @@ class DonkeyKongEnv(NESEnv):
             return -0.1
         if self._last_player_position == self.player_position:
             return -0.1
-        return 0
+        return 0'''
 
-    @property
+    '''@property
     def _punish_at_broken_ladder(self):
         if self.player_position[0] == 0 and self.player_position[1] == 0:
             return 0
@@ -629,7 +628,7 @@ class DonkeyKongEnv(NESEnv):
         for ladders in self._known_ladders:
             if self._current_platform == ladders[0] and self.player_position[0] == ladders[1] and ladders[2] and self._player_status == 'Climbing':
                 return -1
-        return 0
+        return 0'''
     '''
     @property
     def _reward_safety(self):
@@ -738,7 +737,7 @@ class DonkeyKongEnv(NESEnv):
         # score_reward = self._score_reward
         # reward_exploration = self._reward_exploration
         # new_max_y_reward = self._new_max_y_reward
-        # y_reward = self._y_reward
+        y_reward = self._y_reward
         # reward_platform_travel = self._reward_platform_travel
         # time_reward = self._time_reward
         # grounded_y_reward = self._reward_grounded_y
@@ -746,17 +745,17 @@ class DonkeyKongEnv(NESEnv):
         # reward_at_ladder = self._reward_at_ladder
         # time_on_platform_punishment = self._time_on_platform_punishment
         # y_improvement_reward = self.reward_y_improvement
-
-        climbing_reward = self._climbing_reward
-        punish_broken_ladder = self._punish_at_broken_ladder
+        # climbing_reward = self._climbing_reward
+        # punish_broken_ladder = self._punish_at_broken_ladder
         death_penalty = self._death_penalty
         platform_reward = self._platform_reward
         grounded_reward = self._reward_grounded
         princess_reward = self._reward_closer_to_princess
-        ladder_distance_reward = (self._reward_closer_to_ladder + platform_reward)/10
-        rewards = princess_reward + grounded_reward + ladder_distance_reward + climbing_reward
-        punishments = death_penalty + punish_broken_ladder + self._punish_staying_still
-        total_reward = (platform_reward * platform_reward * rewards) + punishments
+        # ladder_distance_reward = (self._reward_closer_to_ladder + platform_reward)/10
+
+        rewards = princess_reward + y_reward + grounded_reward
+        punishments = death_penalty
+        total_reward = (platform_reward * rewards) + punishments
 
         return total_reward
 
@@ -824,8 +823,6 @@ class DonkeyKongEnv(NESEnv):
             actions=self._actions,
             platform_last=self._platform_last,
             last_distance_to_princess=self._last_distance_to_princess,
-            punish_staying_still=self._punish_staying_still,
             
-
         )
 

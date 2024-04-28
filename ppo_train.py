@@ -19,13 +19,13 @@ from stable_baselines3.common.monitor import Monitor
 def train():
     # Model Param
     CHECK_FREQ_NUMB = 1000
-    TOTAL_TIMESTEP_NUMB = 5000000
+    TOTAL_TIMESTEP_NUMB = 1000000
     LEARNING_RATE = 0.0001
     GAE = 1.0
     ENT_COEF = 0.01
     N_STEPS = 512
     GAMMA = 0.9
-    BATCH_SIZE = 64
+    BATCH_SIZE = 512
     N_EPOCHS = 10
 
     save_dir = Path('./model/PPO')
@@ -95,14 +95,15 @@ def train():
     env= VecFrameStack(env, 4, channels_order='last')
     env.reset()
    
-    model = PPO('CnnPolicy', env, verbose=1, policy_kwargs=policy_kwargs, tensorboard_log=save_dir, learning_rate=LEARNING_RATE, n_steps=N_STEPS, # type: ignore
+    model = PPO('CnnPolicy', env, verbose=1, policy_kwargs=policy_kwargs, tensorboard_log="tensorboard_log/PPO", learning_rate=LEARNING_RATE, n_steps=N_STEPS, # type: ignore
               batch_size=BATCH_SIZE, n_epochs=N_EPOCHS, gamma=GAMMA, gae_lambda=GAE, ent_coef=ENT_COEF, device='mps')
     
     if os.path.exists('model/PPO/PPO.zip'):
         model = PPO.load('model/PPO/PPO.zip', env=env)
         print('Model is loaded')
     
-    model.learn(total_timesteps=TOTAL_TIMESTEP_NUMB, callback=callback)
+    while True:
+        model.learn(total_timesteps=TOTAL_TIMESTEP_NUMB, callback=callback)
 
 if __name__ == "__main__":
     train()

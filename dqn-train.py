@@ -1,3 +1,6 @@
+from collections import namedtuple
+from math import gamma
+from cv2 import exp
 import gym.spaces
 from gym_dk.NESenv import SkipFrame, ResizeEnv
 import torch as th
@@ -15,6 +18,7 @@ from gym_dk.dk_env import DonkeyKongEnv
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.dqn.dqn import DQN
 from gym.wrappers import GrayScaleObservation # type: ignore
+import random
 
 def train():
     save_dir = Path('./model/DQN')
@@ -90,9 +94,13 @@ def train():
         verbose=2,
         device='mps',
         tensorboard_log="./tensorboard_log/DQN",
-        policy_kwargs=policy_kwargs
+        policy_kwargs=policy_kwargs,
+        learning_rate=0.0001,
+        buffer_size=100000,
+        batch_size=512,
+        exploration_fraction=0.5
     )
-    
+
     num_episodes = 1000000
     env.reset()
 
@@ -103,8 +111,9 @@ def train():
     else:
         print("Model Created")
 
-    model.learn(total_timesteps=num_episodes, callback=callback)
-    model.save(save_dir_str + '/DQN.zip')
+    while True:
+        model.learn(total_timesteps=num_episodes, callback=callback)
+        model.save(save_dir_str + '/DQN.zip')
 
     env.close()
     
