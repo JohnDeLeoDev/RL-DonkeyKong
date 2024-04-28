@@ -1,9 +1,3 @@
-from collections import namedtuple
-from math import gamma
-from cv2 import exp
-from collections import namedtuple
-from math import gamma
-from cv2 import exp
 import gym.spaces
 from gym_dk.NESenv import SkipFrame, ResizeEnv
 import torch as th
@@ -21,7 +15,6 @@ from gym_dk.dk_env import DonkeyKongEnv
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.dqn.dqn import DQN
 from gym.wrappers import GrayScaleObservation  # type: ignore
-import random
 
 
 def train():
