@@ -1,6 +1,9 @@
 from collections import namedtuple
 from math import gamma
 from cv2 import exp
+from collections import namedtuple
+from math import gamma
+from cv2 import exp
 import gym.spaces
 from gym_dk.NESenv import SkipFrame, ResizeEnv
 import torch as th

@@ -5,7 +5,6 @@ import torch as th
 from torch import nn
 from pathlib import Path
 import gym
-import numpy as np
 import os
 from gym.wrappers import GrayScaleObservation  # type: ignore
 from stable_baselines3.common.vec_env.vec_frame_stack import VecFrameStack
@@ -31,11 +30,13 @@ def train():
     # Model Param
     CHECK_FREQ_NUMB = 1000
     TOTAL_TIMESTEP_NUMB = 1000000
+    TOTAL_TIMESTEP_NUMB = 1000000
     LEARNING_RATE = 0.0001
     GAE = 1.0
     ENT_COEF = 0.01
     N_STEPS = 512
     GAMMA = 0.9
+    BATCH_SIZE = 512
     BATCH_SIZE = 512
     N_EPOCHS = 10
 
